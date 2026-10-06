@@ -159,9 +159,9 @@ end
 
 pub define class FilterSubscription<T> extends Subscription<T> as
   val Subscription<T> upstream;
-  val Fnc<&T, bool> predicate;
+  val Fnc<T, bool> predicate;
 
-  pub constructor(Subscription<T> upstream, Fnc<&T, bool> predicate) {
+  pub constructor(Subscription<T> upstream, Fnc<T, bool> predicate) {
     self.upstream = upstream;
     self.predicate = predicate;
   }
@@ -173,7 +173,7 @@ pub define class FilterSubscription<T> extends Subscription<T> as
         return None;
       fi
       val T value = frame.unwrap();
-      if self.predicate(&value); then
+      if self.predicate(rt borrow value); then
         return Some(value);
       fi
     }
@@ -239,9 +239,9 @@ end
 
 pub define class FilterObservable<T> extends Observable<T> as
   val Observable<T> source;
-  val Fnc<&T, bool> predicate;
+  val Fnc<T, bool> predicate;
 
-  pub constructor(Observable<T> source, Fnc<&T, bool> predicate) {
+  pub constructor(Observable<T> source, Fnc<T, bool> predicate) {
     self.source = source;
     self.predicate = predicate;
   }
@@ -269,7 +269,7 @@ pub fnc map<A, B>(Observable<A> source, Fnc<A, B> transform): Observable<B> {
   return new MapObservable<A, B>(source, transform);
 }
 
-pub fnc filter<T>(Observable<T> source, Fnc<&T, bool> predicate): Observable<T> {
+pub fnc filter<T>(Observable<T> source, Fnc<T, bool> predicate): Observable<T> {
   return new FilterObservable<T>(source, predicate);
 }
 
