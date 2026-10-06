@@ -21,8 +21,10 @@ prefetch queue. `take(0)` consumes nothing and cancellation is idempotent.
 
 Finite pull state is stored directly in subscription objects. `from_future()`
 uses Oreslang's native Future/await suspension path; it does not invent a second
-callback scheduler. Higher-order operators currently include `map`, `filter`
-and `take`.
+callback scheduler. Native Future values may be prepared first with `map`,
+`compose` / `flatMap`, and `onSuccess`; guest callbacks resume as Ores
+scheduler/actor turns rather than producer-thread callbacks. Higher-order
+operators currently include `map`, `filter` and `take`.
 
 This repository intentionally stays separate from:
 - **rx-ores-callbacks** — synchronous push/callback composition.
