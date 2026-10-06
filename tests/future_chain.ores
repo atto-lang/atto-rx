@@ -10,8 +10,6 @@ async fnc twice(int value): int {
 }
 
 pub fnc main(): void {
-  let int observed = 0;
-
   val Future<int> mapped = twenty().map(|int value| -> {
     return value + 1;
   });
@@ -19,7 +17,9 @@ pub fnc main(): void {
     return twice(value);
   });
   val Future<int> ready = composed.onSuccess(|int value| -> {
-    observed = value;
+    stdio.stdout.write("seen:");
+    stdio.stdout.write(value);
+    stdio.stdout.write(":");
     return;
   });
 
@@ -28,8 +28,6 @@ pub fnc main(): void {
   val Option<int> value = sub.next();
 
   stdio.stdout.write(value.unwrap());
-  stdio.stdout.write(":");
-  stdio.stdout.write(observed);
   stdio.stdout.write(":");
   stdio.stdout.write(sub.next().is_none());
   return;
