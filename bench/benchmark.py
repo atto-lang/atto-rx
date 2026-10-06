@@ -21,7 +21,7 @@ def main() -> None:
     parser.add_argument("--pull", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--callbacks", type=Path, required=True)
     parser.add_argument("--channels", type=Path, required=True)
-    parser.add_argument("--warmup", type=int, default=3)
+    parser.add_argument("--preflight", type=int, default=2)
     parser.add_argument("--samples", type=int, default=9)
     args = parser.parse_args()
 
@@ -41,7 +41,7 @@ def main() -> None:
 
     for name, root in roots.items():
         program = root / "bench" / "pipeline.ores"
-        for _ in range(args.warmup):
+        for _ in range(args.preflight):
             run_once(command, program, EXPECTED[name])
         samples = [run_once(command, program, EXPECTED[name]) for _ in range(args.samples)]
         median = statistics.median(samples)
