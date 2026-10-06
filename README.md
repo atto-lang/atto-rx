@@ -30,6 +30,21 @@ state while class receivers remain immutable.
 Initial operators: `from_values`, `from_future`, `map`, `filter`, `take`,
 and `first`.
 
+A Future can be transformed before it enters the pull stream without changing
+the subscription model:
+
+```ores
+val Future<int> prepared = fetch()
+    .map(transform)
+    .compose(next_async)
+    .onSuccess(observer);
+val Observable<int> source = rx.from_future(prepared);
+```
+
+`map`, `compose` / `flatMap`, and `onSuccess` are native Ores Future
+combinators. Their guest callbacks run as Ores scheduler/actor turns rather than
+on producer completion threads.
+
 The first standalone surface intentionally keeps cancellation's boolean return
 as an acknowledgement while the internal command is idempotent; refining that
 return to distinguish first-transition/already-terminal should not add a second
