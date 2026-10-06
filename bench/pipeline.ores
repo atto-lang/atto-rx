@@ -1,7 +1,7 @@
 import * as rx from '../src/rx.ores';
 import class Observable, Subscription from '../src/rx.ores';
 
-pub fnc main(): void {
+pub async fnc main(): void {
   let int checksum = 0;
 
   for let iteration = 0; iteration < 20000; iteration++ do
