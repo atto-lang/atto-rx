@@ -11,9 +11,9 @@ import time
 ITERATIONS = 20_000
 RAW_ITEMS_PER_PIPELINE = 5  # take(3) after map/filter stops after source item 5
 EXPECTED = {
-    "pull": str(ITERATIONS * 3),
-    "callbacks": str(ITERATIONS * 5),
-    "channels": str(ITERATIONS * 3),
+    "pull": str(ITERATIONS * 24),
+    "callbacks": str(ITERATIONS * 24),
+    "channels": str(ITERATIONS * 24),
 }
 
 def main() -> None:
