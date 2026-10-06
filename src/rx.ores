@@ -173,7 +173,7 @@ pub define class FilterSubscription<T> extends Subscription<T> as
         return None;
       fi
       val T value = frame.unwrap();
-      if self.predicate(rt borrow value); then
+      if self.predicate(value); then
         return Some(value);
       fi
     }
