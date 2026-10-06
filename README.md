@@ -19,6 +19,14 @@ The initial implementation is demand-driven. `subscribe()` creates independent
 subscription state and each `next()` admits at most one item. There is no
 prefetch queue. `take(0)` consumes nothing and cancellation is idempotent.
 
+RX APIs use Oreslang's pointerless ownership model. Callback signatures use
+ordinary managed value/reference types such as `Fnc<T, bool>`; they never encode
+ownership with `&T`, `T*`, unary `&`, or unary `*`. When this library needs
+to make a temporary read borrow explicit, it uses `rt borrow value`. Explicit
+ownership transitions belong to the reserved runtime surface (`rt copy`,
+`rt share`, `rt borrow`, `rt take`, and related runtime reference
+operations), not C/Rust-style pointer operators.
+
 Finite pull state is stored directly in subscription objects. `from_future()`
 uses Oreslang's native Future/await suspension path; it does not invent a second
 callback scheduler. Native Future values may be prepared first with `map`,
