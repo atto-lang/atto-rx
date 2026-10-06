@@ -1,7 +1,7 @@
 import * as rx from '../src/rx.ores';
 import class Observable, Subscription from '../src/rx.ores';
 
-pub fnc main(): void {
+pub async fnc main(): void {
   val Observable<int> source = rx.from_values([1, 2, 3, 4, 5]);
   val Fnc<int, int> twice = |value| -> { return value * 2; };
   val Observable<int> doubled = rx.map(source, twice);
