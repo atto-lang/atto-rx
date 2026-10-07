@@ -53,3 +53,7 @@ python3 scripts/test.py
 
 The benchmark driver lives in `bench/benchmark.py`; `bench/pipeline.ores`
 is this implementation's common map/filter/take workload.
+
+## Compiler compatibility checkpoint (2026-10-06)
+
+This repository tracks the latest 10 compiler PRs as **unmerged proposals**, without changing its stable compiler pin or API behavior. See [docs/compiler-pr-sync.md](docs/compiler-pr-sync.md) for rx-ores-specific migration invariants, dependencies and validation gates.
