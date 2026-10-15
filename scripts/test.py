@@ -5,6 +5,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+from fixture_inventory import validate_cases
 
 ROOT = Path(__file__).resolve().parents[1]
 JAVA = os.environ.get('JAVA', 'java')
@@ -34,9 +35,10 @@ def run(args):
         sys.exit(result.stdout + result.stderr)
     return result.stdout.strip()
 
+TESTS = validate_cases(ROOT / 'tests', ('.out',))
 reject_legacy_pointer_syntax()
 run(['--check', str(ROOT / 'src/rx.ores')])
-for path in sorted((ROOT / 'tests').glob('*.ores')):
+for path in TESTS:
     run(['--check', str(path)])
     actual = run([str(path)])
     expected = path.with_suffix('.out').read_text().strip()
