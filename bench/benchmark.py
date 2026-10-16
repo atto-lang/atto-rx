@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Round-robin wall-clock benchmark for the three rx-ores execution models.
 
-Each implementation executes the same 20,000-pipeline Ores workload and must
-print the same checksum. Timed samples include one Ores JVM process launch, so
+Each implementation executes the same 20,000-pipeline Ores workload but
+currently uses a different terminal accounting contract. Assert the expected
+result per variant and do not treat this baseline as a final performance ranking. Timed samples include one Ores JVM process launch, so
 results are intended for relative comparison on the same machine/runner. The
 large in-process workload keeps startup from dominating the measurement.
 """
