@@ -8,6 +8,7 @@ define class Subscription<T> as
   let bool cancelled = false;
   let bool finished = false;
   let bool pulling = false;
+  let bool disposed = false;
 
   pub next(mut self)(): Option<T> {
     if self.cancelled || self.finished; then
@@ -23,12 +24,12 @@ define class Subscription<T> as
       val Option<T> frame = self.pull();
       if frame.is_none(); then
         self.finished = true;
-        self.dispose();
+        self.dispose_once();
       fi
       return frame;
     } catch (err) {
       self.finished = true;
-      self.dispose();
+      self.dispose_once();
       val Result<Option<T>, Object> failure = Err(err);
       return failure.expect("rx upstream failed");
     } finally {
@@ -44,12 +45,23 @@ define class Subscription<T> as
     return;
   }
 
+  // Acquire cleanup before invoking downstream destructors; exceptions must
+  // never re-enter dispose or cancel an upstream subscription twice.
+  dispose_once(mut self)(): void {
+    if self.disposed; then
+      return;
+    fi
+    self.disposed = true;
+    self.dispose();
+    return;
+  }
+
   pub cancel(mut self)(): bool {
     if self.cancelled || self.finished; then
       return false;
     fi
     self.cancelled = true;
-    self.dispose();
+    self.dispose_once();
     return true;
   }
 end
@@ -277,9 +289,65 @@ pub fnc take<T>(Observable<T> source, int count): Observable<T> {
   return new TakeObservable<T>(source, count);
 }
 
+
+// Skip does not buffer or prefetch: it requests only enough items to satisfy
+// the next downstream pull. Its remaining count belongs to this subscription.
+define class SkipSubscription<T> extends Subscription<T> as
+  val Subscription<T> upstream;
+  let int remaining;
+
+  constructor(Subscription<T> upstream, int count) {
+    if count < 0; then
+      val Result<bool, String> failure = Err("skip count must be nonnegative");
+      failure.expect("rx.skip");
+    fi
+    self.upstream = upstream;
+    self.remaining = count;
+  }
+
+  pub pull(mut self)(): Option<T> {
+    loop {
+      if self.remaining == 0; then
+        return self.upstream.next();
+      fi
+      val Option<T> dropped = self.upstream.next();
+      if dropped.is_none(); then
+        self.remaining = 0;
+        return None;
+      fi
+      self.remaining = self.remaining - 1;
+    }
+  }
+
+  pub dispose(mut self)(): void {
+    self.upstream.cancel();
+    return;
+  }
+end
+
+define class SkipObservable<T> extends Observable<T> as
+  val Observable<T> source;
+  val int count;
+
+  constructor(Observable<T> source, int count) {
+    self.source = source;
+    self.count = count;
+  }
+
+  pub subscribe(): Subscription<T> {
+    return new SkipSubscription<T>(self.source.subscribe(), self.count);
+  }
+end
+
+pub fnc skip<T>(Observable<T> source, int count): Observable<T> {
+  return new SkipObservable<T>(source, count);
+}
+
 pub fnc first<T>(Observable<T> source): Option<T> {
   let Subscription<T> sub = source.subscribe();
-  val Option<T> value = sub.next();
-  sub.cancel();
-  return value;
+  try {
+    return sub.next();
+  } finally {
+    sub.cancel();
+  }
 }
