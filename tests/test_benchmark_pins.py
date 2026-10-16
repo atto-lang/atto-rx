@@ -3,9 +3,12 @@ from pathlib import Path
 import runpy
 import tempfile
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 BENCH = runpy.run_path(str(Path(__file__).resolve().parents[1] / "bench" / "benchmark.py"))
 require_common_compiler_pin = BENCH["require_common_compiler_pin"]
+require_live_compiler_checkout = BENCH["require_live_compiler_checkout"]
 PIN_A = "a" * 40
 PIN_B = "b" * 40
 
@@ -37,6 +40,45 @@ class BenchmarkAdmissionTest(unittest.TestCase):
                 pairs = [sample(root, "pull" + (bad_pin or "missing"), bad_pin)]
                 with self.assertRaises(SystemExit):
                     require_common_compiler_pin(pairs)
+
+
+class RuntimeCompilerIdentityTest(unittest.TestCase):
+    def built(self, root):
+        source = Path(root) / ".work" / "oreslang-source.java"
+        classes = source / "target" / "classes"
+        classes.mkdir(parents=True)
+        return source, str(classes)
+
+    def test_missing_compiler_tree_fails_closed(self):
+        with tempfile.TemporaryDirectory() as root:
+            with self.assertRaisesRegex(SystemExit, "Missing built compiler"):
+                require_live_compiler_checkout(PIN_A, "", Path(root))
+
+    def test_stale_classpath_is_rejected(self):
+        with tempfile.TemporaryDirectory() as root:
+            self.built(root)
+            with self.assertRaisesRegex(SystemExit, "ORES_CLASSPATH omits"):
+                require_live_compiler_checkout(PIN_A, "/not/this/compiler", Path(root))
+
+    def test_compiler_commit_must_match_pin(self):
+        with tempfile.TemporaryDirectory() as root:
+            source, cp = self.built(root)
+            with patch("subprocess.run", return_value=SimpleNamespace(returncode=0, stdout=PIN_B)):
+                with self.assertRaisesRegex(SystemExit, "does not match compiler.lock"):
+                    require_live_compiler_checkout(PIN_A, cp, Path(root))
+            with patch("subprocess.run", return_value=SimpleNamespace(returncode=0, stdout=PIN_A)):
+                self.assertEqual(require_live_compiler_checkout(PIN_A, cp, Path(root)), str(source))
+
+    def test_compiler_tree_mirror_identity(self):
+        with tempfile.TemporaryDirectory() as root:
+            source, cp = self.built(root)
+            (Path(root) / "compiler-tree.txt").write_text(PIN_A + "\\n")
+            with patch("subprocess.run", return_value=SimpleNamespace(returncode=0, stdout=PIN_B)):
+                with self.assertRaisesRegex(SystemExit, "does not match compiler-tree.txt"):
+                    require_live_compiler_checkout(PIN_A, cp, Path(root))
+            with patch("subprocess.run", return_value=SimpleNamespace(returncode=0, stdout=PIN_A)) as run:
+                self.assertEqual(require_live_compiler_checkout(PIN_B, cp, Path(root)), str(source))
+                self.assertEqual(run.call_args.args[0][-1], "HEAD^{tree}")
 
 
 if __name__ == "__main__":
