@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """Round-robin wall-clock benchmark for the three rx-ores execution models.
 
-Each implementation executes the same 20,000-pipeline Ores workload but
-currently uses a different terminal accounting contract. Assert the expected
-result per variant and do not treat this baseline as a final performance ranking. Timed samples include one Ores JVM process launch, so
-results are intended for relative comparison on the same machine/runner. The
-large in-process workload keeps startup from dominating the measurement.
+Each implementation must execute the same 20,000-pipeline workload and sum
+the same downstream emitted values. A run fails closed if compiler pins differ.
+Timed samples include one Ores JVM launch; these are prototype measurements,
+not cross-hardware, scheduler, latency or allocation benchmarks.
 """
 from __future__ import annotations
 
 import argparse
 import math
 import os
+import re
 from pathlib import Path
 import statistics
 import subprocess
@@ -20,11 +20,8 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PARENT = ROOT.parent
-# Pull variants sum the three emitted values (6, 8, 10) each iteration.
-# The callback variant currently returns source values CONSUMED (five) and
-# scales that value by eight. These are different terminal observations.
-# Do not interpret the different checksums as a fair apples-to-apples ranking.
-EXPECTED = {"pull": "480000", "callbacks": "800000", "channels": "480000"}
+# Every variant sums the three emitted values (6, 8, 10) per iteration.
+EXPECTED = "480000"
 PIPELINES_PER_SAMPLE = 20_000
 
 def parser() -> argparse.ArgumentParser:
@@ -51,6 +48,23 @@ def percentile(values: list[float], q: float) -> float:
     weight = pos - low
     return ordered[low] * (1.0 - weight) + ordered[high] * weight
 
+def require_common_compiler_pin(implementations: list[tuple[str, Path]]) -> str:
+    """Prevent accidentally comparing different compiler/runtime revisions."""
+    pins = {}
+    for name, program in implementations:
+        pin_file = program.parent.parent / "compiler.lock"
+        if not pin_file.is_file():
+            raise SystemExit(f"{name}: missing compiler.lock: {pin_file}")
+        pin = pin_file.read_text().strip()
+        if not re.fullmatch(r"[0-9a-f]{40}", pin):
+            raise SystemExit(f"{name}: invalid compiler.lock (expected full lowercase SHA)")
+        pins[name] = pin
+    if len(set(pins.values())) != 1:
+        details = ", ".join(f"{name}={sha}" for name, sha in pins.items())
+        raise SystemExit(f"Refusing cross-compiler benchmark; align pins first: {details}")
+    return next(iter(pins.values()))
+
+
 def main() -> int:
     args = parser().parse_args()
     if args.warmups < 0 or args.runs < 1:
@@ -74,6 +88,7 @@ def main() -> int:
         ("callbacks", args.callbacks_root.resolve() / "bench" / "pipeline.ores"),
         ("channels", args.channels_root.resolve() / "bench" / "pipeline.ores"),
     ]
+    compiler_pin = require_common_compiler_pin(implementations)
     for name, program in implementations:
         if not program.is_file():
             raise SystemExit(f"{name}: missing benchmark program: {program}")
@@ -100,8 +115,8 @@ def main() -> int:
             sys.stderr.write(result.stdout + result.stderr)
             raise SystemExit(f"{name}: benchmark execution failed")
         actual = result.stdout.strip()
-        if actual != EXPECTED[name]:
-            raise SystemExit(f"{name}: expected its checksum {EXPECTED[name]}, got {actual!r}")
+        if actual != EXPECTED:
+            raise SystemExit(f"{name}: expected its checksum {EXPECTED}, got {actual!r}")
         return elapsed if timed else 0.0
 
     # Rotate the first implementation each round to reduce order/thermal bias.
@@ -116,8 +131,8 @@ def main() -> int:
             name, program = implementations[(round_index + offset) % len(implementations)]
             samples[name].append(run_one(name, program, True))
 
-    print(f"workload: {PIPELINES_PER_SAMPLE} pipelines/sample; expected outputs={EXPECTED}")
-    print("WARNING: callback reports upstream consumption, pull models sum emitted values; benchmark terminals are not equivalent.")
+    print(f"workload: {PIPELINES_PER_SAMPLE} pipelines/sample; emitted-value checksum={EXPECTED}")
+    print(f"common compiler pin: {compiler_pin}")
     print("| implementation | median ms | p95 ms | min ms | pipelines/s |")
     print("| --- | ---: | ---: | ---: | ---: |")
     medians: dict[str, float] = {}
