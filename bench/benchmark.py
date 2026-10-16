@@ -65,6 +65,42 @@ def require_common_compiler_pin(implementations: list[tuple[str, Path]]) -> str:
     return next(iter(pins.values()))
 
 
+def require_live_compiler_checkout(expected_pin: str, classpath: str,
+                                   root: Path = ROOT) -> str:
+    """Check the actual executable compiler input, not just three lockfiles."""
+    source = root / ".work" / "oreslang-source.java"
+    classes = source / "target" / "classes"
+    if not source.is_dir() or not classes.is_dir():
+        raise SystemExit("Missing built compiler tree; run scripts/setup.py first")
+    entries = [Path(entry).resolve() for entry in classpath.split(os.pathsep)
+               if entry]
+    if classes.resolve() not in entries:
+        raise SystemExit("ORES_CLASSPATH omits the compiler's target/classes")
+
+    def git_rev(revision: str) -> str:
+        result = subprocess.run(["git", "-C", str(source), "rev-parse", revision],
+                                capture_output=True, text=True, timeout=20)
+        if result.returncode:
+            raise SystemExit("Compiler checkout Git identity unavailable")
+        value = result.stdout.strip()
+        if not re.fullmatch(r"[0-9a-f]{40}", value):
+            raise SystemExit("Compiler checkout revision is not an exact SHA")
+        return value
+
+    expected_tree_file = root / "compiler-tree.txt"
+    if expected_tree_file.is_file():
+        expected_tree = expected_tree_file.read_text().strip()
+        if not re.fullmatch(r"[0-9a-f]{40}", expected_tree):
+            raise SystemExit("Invalid compiler-tree.txt Git tree SHA")
+        actual_tree = git_rev("HEAD^{tree}")
+        if actual_tree != expected_tree:
+            raise SystemExit("Compiler checkout tree does not match compiler-tree.txt")
+    else:
+        if git_rev("HEAD") != expected_pin:
+            raise SystemExit("Compiler checkout commit does not match compiler.lock")
+    return str(source)
+
+
 def main() -> int:
     args = parser().parse_args()
     if args.warmups < 0 or args.runs < 1:
@@ -89,6 +125,7 @@ def main() -> int:
         ("channels", args.channels_root.resolve() / "bench" / "pipeline.ores"),
     ]
     compiler_pin = require_common_compiler_pin(implementations)
+    require_live_compiler_checkout(compiler_pin, classpath)
     for name, program in implementations:
         if not program.is_file():
             raise SystemExit(f"{name}: missing benchmark program: {program}")
