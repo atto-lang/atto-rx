@@ -1,0 +1,11 @@
+import * as rx from '../src/rx.ores';
+import class Observable from '../src/rx.ores';
+
+pub async fnc main(): void {
+  val Observable<int> source = rx.from_values([7, 8, 9]);
+  stdio.println(rx.first(source).unwrap());
+
+  val Observable<int> empty = rx.take(rx.from_values([2, 4]), 0);
+  stdio.println(rx.first(empty).is_none());
+  return;
+}
