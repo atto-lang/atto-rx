@@ -277,9 +277,13 @@ pub fnc take<T>(Observable<T> source, int count): Observable<T> {
   return new TakeObservable<T>(source, count);
 }
 
+// Cancel the owned subscription on success AND exceptional exit.
+// The producer (not owned by this adapter) is never cancelled implicitly.
 pub fnc first<T>(Observable<T> source): Option<T> {
   let Subscription<T> sub = source.subscribe();
-  val Option<T> value = sub.next();
-  sub.cancel();
-  return value;
+  try {
+    return sub.next();
+  } finally {
+    sub.cancel();
+  }
 }
