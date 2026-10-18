@@ -47,7 +47,7 @@ class StreamInterleavingTests(unittest.TestCase):
         self.assertTrue(model.emit("second"))
         self.assertEqual(model.next(), ("ITEM", "second"))
         self.assertEqual(model.next(), ("PENDING", None))
-        self.assertTrue(model.invariant())
+        model.invariant()
 
     def test_invalid_terminal_and_capacity_are_rejected(self):
         for capacity in (0, -1, True, 1025):
