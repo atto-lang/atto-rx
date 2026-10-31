@@ -19,9 +19,11 @@ Native `Task<T>` blocks have source syntax `task { return value; }` and may be a
 
 `src/rx.ores` is a deliberately small **prototype** for an *already-started* external Task. It never creates another producer Task; `from_task` simply holds the supplied Task. Its single-use `TaskObservable<T>` exposes `next()`, `cancel()` and `is_cancelled()`. `next()` awaits its source through Oreslang's guest suspension path. No Task-backed per-item stream scheduling, ownership-complete cancellation, or parallel mapper is claimed.
 
-The source is incomplete by design: it is **not** safe to promote until exclusive Task-handle transfer, cancellation while suspended, actor ownership, and terminal arbitration have actual compiler/runtime proofs. In particular, the plain Boolean fields are **not cross-Task atomic admission**. The example only admits serialized use by the owning logical task; concurrent callers must fail closed when the runtime API is implemented.
+The source is incomplete by design: it is **not** safe to promote until exclusive Task-handle transfer, cancellation while suspended, actor ownership, and terminal arbitration have actual compiler/runtime proofs. In particular, the plain Boolean fields are **not cross-Task atomic admission**. The Stage-0 adapter now **rejects** `cancel()` once `next()` has claimed demand, rather than claiming successful detach of an awaited producer; it supports pre-demand cancellation only. A suspended `mut self` may still fail borrow checking. The example only admits serialized use by one logical owner; concurrent callers cannot use this prototype safely.
 
 ## Stage 1: independent structured reactive interface (design, not implemented)
+
+The formal event/ownership and retirement transition table is in [docs/PROTOCOL.md](docs/PROTOCOL.md), accompanied by an executable **source-free** model at `tests/task_protocol.test.mjs`. That model has in-flight observer detachment transitions that **are not implemented** by Stage 0.
 
 - `Observable<T,E>.subscribe(): Subscription<T,E>` with an owned subscription capability.
 - `Subscription.next_task(): Task<StreamEvent<T,E>>` admits **at most one** demand and one structured child, no eager prefetch or unbounded pending source tasks.
@@ -38,6 +40,13 @@ The source is incomplete by design: it is **not** safe to promote until exclusiv
 3. **P0:** Source `task {}` compiler admission is still a branch feature, not established five-backend support: Java draft [#1468](https://github.com/ores-truffle-oreslang/oreslang-source.java/pull/1468).
 4. **P0:** Existing Rx cancel/disposal and raw-channel sender races still have draft hardening PRs (#14/#18/#19 in rx-ores, #17/#19/#22/#23/#24/#27 in channels).
 5. **P1:** Hard real-time requires bounded allocation, deterministic scheduler admission, reduction/time budget and worst-case latency evidence rather than merely no GC.
+
+## Source-free reference tests and guest candidate tests
+
+- `node --test incubator/rx-ores-tasks/tests/task_protocol.test.mjs` — eight Node assertions groups and 1,440 enumerated event permutations (owned/external one-shot models); source-free, NOT guest runtime, NOT backend verification.
+- `ORES_CLASSPATH='...' node incubator/rx-ores-tasks/scripts/test_guest.mjs` — two Oreslang guest fixture candidates: `task_single.ores` and `task_cancel_before.ores`. It calls the compiler's `--check` and the guest executable for each, comparing stdout to checked-in oracle files.
+- **No ORES_CLASSPATH means NOT_EXECUTED (exit 2).** An arbitrary classpath is not a recorded exact-source compiler SHA, so a successful guest-runner invocation without separate build attestation is still insufficient to claim source-exact or AOT parity.
+- Stable RX compiler.lock, CI and production source remain untouched.
 
 ## Acceptance checks before implementation promotion
 
