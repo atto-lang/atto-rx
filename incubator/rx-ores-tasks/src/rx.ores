@@ -15,6 +15,7 @@ pub define class TaskObservable<T> as
   val Task<T> producer;
   let bool demand_claimed = false;
   let bool cancelled = false;
+  let bool finished = false;
 
   constructor(Task<T> producer) {
     self.producer = producer;
@@ -25,7 +26,7 @@ pub define class TaskObservable<T> as
   // The owning guest task must serialize calls until TaskScope/atomic
   // subscription admission exists in the compiler/runtime.
   pub next(mut self)(): Option<T> {
-    if self.cancelled || self.demand_claimed; then
+    if self.cancelled || self.finished || self.demand_claimed; then
       return None;
     fi
     self.demand_claimed = true;
@@ -33,13 +34,16 @@ pub define class TaskObservable<T> as
     if self.cancelled; then
       return None;
     fi
+    self.finished = true;
     return Some(value);
   }
 
-  // Detach local interest only; do not call producer.cancel().
+  // Mark local cancellation even while await is in flight. The suspended
+  // observer still requires runtime-safe waiter detachment (P0). Never
+  // invoke producer.cancel() or assume physical quiescence.
   // Physical Task retirement is NOT implied by a successful cancel().
   pub cancel(mut self)(): bool {
-    if self.cancelled || self.demand_claimed; then
+    if self.cancelled || self.finished; then
       return false;
     fi
     self.cancelled = true;
