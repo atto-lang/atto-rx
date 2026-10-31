@@ -8,6 +8,7 @@ define class Subscription<T> as
   let bool cancelled = false;
   let bool finished = false;
   let bool pulling = false;
+  let bool disposed = false;
 
   pub next(mut self)(): Option<T> {
     if self.cancelled || self.finished; then
@@ -23,12 +24,12 @@ define class Subscription<T> as
       val Option<T> frame = self.pull();
       if frame.is_none(); then
         self.finished = true;
-        self.dispose();
+        self.dispose_once();
       fi
       return frame;
     } catch (err) {
       self.finished = true;
-      self.dispose();
+      self.dispose_once();
       val Result<Option<T>, Object> failure = Err(err);
       return failure.expect("rx upstream failed");
     } finally {
@@ -44,12 +45,23 @@ define class Subscription<T> as
     return;
   }
 
+  // Set the claim before invoking the subclass cleanup hook. A throwing or
+  // reentrant dispose() must never result in a second cleanup invocation.
+  dispose_once(mut self)(): void {
+    if self.disposed; then
+      return;
+    fi
+    self.disposed = true;
+    self.dispose();
+    return;
+  }
+
   pub cancel(mut self)(): bool {
     if self.cancelled || self.finished; then
       return false;
     fi
     self.cancelled = true;
-    self.dispose();
+    self.dispose_once();
     return true;
   }
 end
