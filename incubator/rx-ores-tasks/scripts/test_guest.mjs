@@ -20,10 +20,9 @@ const prefix = ['--enable-native-access=ALL-UNNAMED',
   '-Dpolyglot.engine.WarnInterpreterOnly=false', '-cp', cp,
   'dev.oreslang.launcher.OresMain'];
 const src = resolve(root, 'src/rx.ores');
-const fixture = resolve(root, 'tests/task_single.ores');
-const oracle = readFileSync(resolve(root, 'tests/task_single.out'), 'utf8').trimEnd();
+const cases = ['task_single', 'task_cancel_before'];
 
-for (const args of [['--check', src], ['--check', fixture], [fixture]]) {
+function run(args, expected) {
   const result = spawnSync(java, [...prefix, ...args], {
     encoding: 'utf8', timeout: 30000, maxBuffer: 1024 * 1024,
     shell: false
@@ -32,10 +31,19 @@ for (const args of [['--check', src], ['--check', fixture], [fixture]]) {
     console.error('FAIL guest', args, result.error || result.stderr || result.stdout);
     process.exit(1);
   }
-  if (args.length === 1 && (result.stdout || '').trimEnd() !== oracle) {
-    console.error('FAIL guest expected', JSON.stringify(oracle),
+  if (expected !== undefined && (result.stdout || '').trimEnd() !== expected) {
+    console.error('FAIL guest expected', JSON.stringify(expected),
       'actual', JSON.stringify((result.stdout || '').trimEnd()));
     process.exit(1);
   }
 }
-console.log('PASS guest task_single (Task-enabled compiler required; no binary SHA attestation)');
+
+run(['--check', src]);
+for (const name of cases) {
+  const fixture = resolve(root, 'tests', name + '.ores');
+  const oracle = readFileSync(resolve(root, 'tests', name + '.out'), 'utf8').trimEnd();
+  run(['--check', fixture]);
+  run([fixture], oracle);
+}
+console.log('PASS guest Task candidate fixtures=' + cases.length +
+  ' (compiler SHA/provenance NOT_ATTESTED; no backend parity claim)');
