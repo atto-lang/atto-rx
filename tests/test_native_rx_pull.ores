@@ -44,7 +44,7 @@ fnc take_two_completes_after_two(): TestOutcome {
 
 fnc map_and_filter_compose_in_demand_order(): TestOutcome {
   val Observable<int> source = rx.from_values([1, 2, 3, 4]);
-  val Fnc<int, bool> even = |value| -> { return value % 2 == 0; };
+  val Fnc<int, bool> even = |value| -> { return value - (value / 2) * 2 == 0; };
   val Fnc<int, int> twice = |value| -> { return value * 2; };
   val Observable<int> mapped = rx.map(rx.filter(source, even), twice);
   let Subscription<int> sub = mapped.subscribe();
