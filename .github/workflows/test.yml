@@ -43,14 +43,37 @@ jobs:
           source .work/env.sh
           python3 scripts/test.py
 
-      - name: Fetch benchmark peers
+      - name: Fetch and verify exact benchmark peer snapshots
         env:
           GH_TOKEN: ${{ secrets.ORES_COMPILER_READ_TOKEN }}
         run: |
+          set -euo pipefail
           git clone --depth 1 --branch feat/callback-rx-20261006 \
             https://github.com/ores-truffle-oreslang/rx-ores-callbacks.git ../rx-ores-callbacks
           git clone --depth 1 --branch refactor/file-scope-rx-20261006 \
             https://github.com/ores-truffle-oreslang/rx-oreslang-channels.git ../rx-oreslang-channels
+
+          verify_peer() {
+            local path="$1" expected_commit="$2" expected_tree="$3"
+            local actual_commit actual_tree
+            actual_commit="$(git -C "$path" rev-parse HEAD)"
+            actual_tree="$(git -C "$path" rev-parse 'HEAD^{tree}')"
+            if [ "$actual_commit" != "$expected_commit" ] || [ "$actual_tree" != "$expected_tree" ]; then
+              echo "::error::Benchmark peer $path drifted from the reviewed commit/tree; update pins through review."
+              exit 1
+            fi
+            if [ -n "$(git -C "$path" status --porcelain --untracked-files=all)" ]; then
+              echo "::error::Benchmark peer $path has unreviewed local modifications."
+              exit 1
+            fi
+            echo "Verified benchmark peer $path commit=$actual_commit tree=$actual_tree"
+          }
+          verify_peer ../rx-ores-callbacks \
+            57d617c6ee21efb3aa433aee3b405f1fd03e0c09 \
+            961ed9305162a8bf830bea4c259bca8890b875a5
+          verify_peer ../rx-oreslang-channels \
+            9a0e043b2b60a73b752c90b8794e7211eaebdd6d \
+            4bb52386b792a770a5ccd46a339225a5390fe4ba
 
       - name: Validate peer libraries
         run: |
