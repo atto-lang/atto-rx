@@ -57,3 +57,14 @@ is this implementation's common map/filter/take workload.
 ## Compiler compatibility checkpoint (2026-10-06)
 
 This repository tracks the latest 10 compiler PRs as **unmerged proposals**, without changing its stable compiler pin or API behavior. See [docs/compiler-pr-sync.md](docs/compiler-pr-sync.md) for rx-ores-specific migration invariants, dependencies and validation gates.
+
+## Repository ownership and migration (2026-11-08)
+
+This repo is currently `ores-truffle-oreslang/rx-ores`. The public language name is **AttoLang**; preserve `.ores` compatibility and old repo/package/CLI IDs until a separate compiler-backed and consumer-reviewed change proves replacement.
+
+- **Belongs here:** portable reactive API semantics and bounded operator contracts.
+- **Does not belong here:** compiler scheduler internals or managed event streaming SaaS.
+- **Organization model:** [atto-lang](https://github.com/atto-lang) owns portable language libraries, compilers, tools, tests, core/std and examples. [atto-co](https://github.com/atto-co) separately owns managed hosting, tenant/deployment control, identity, billing and SaaS. Existing similarly named `atto-*` repos should be audited for overlap but are not necessarily transfers of this source identity.
+- **Initial proposed move:** this original numeric GitHub repository ID and history into `atto-lang/rx-ores` retaining the old name. Current migration wave authorizes zero direct moves into `atto-co`. Future product carve-outs require new owner/security approval.
+
+**Safe transfer:** announce in [issue #26](https://github.com/ores-truffle-oreslang/.github/issues/26), follow [private migration draft #25](https://github.com/ores-truffle-oreslang/.github/pull/25). Record exact source SHA/tree, ID, release tags, PRs, packages, dependencies, branch/ruleset protections, target visibility and rights, Actions/runners, App/webhook permissions, secrets, Pages, rollback authority, source/target admins and independent security review. Never mirror private source without explicit authorization. After an approved GitHub ownership transfer verify unchanged ID/tree/history, restore security policy, change consumers separately and run exact-head tests with **nonzero executed steps**. `steps=[]`/`null` is `NOT_EXECUTED`; host or structural tests cannot certify AttoLang guest execution, database safety or actor parity.
