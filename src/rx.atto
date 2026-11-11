@@ -244,6 +244,8 @@ define class TakeObservable<T> extends Observable<T> as
   }
 
   pub subscribe(): Subscription<T> {
+    // Zero demand must not even acquire/open the upstream resource.
+    if self.count == 0; then return new Subscription<T>(); fi
     return new TakeSubscription<T>(self.source.subscribe(), self.count);
   }
 end
