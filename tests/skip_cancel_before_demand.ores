@@ -1,0 +1,15 @@
+import * as rx from '../src/rx.ores';
+import class Observable, Subscription from '../src/rx.ores';
+
+pub async fnc main(): void {
+  val Observable<int> source = rx.from_values([7, 8]);
+  val Observable<int> skipped = rx.skip(source, 1);
+  let Subscription<int> aborted = skipped.subscribe();
+  stdio.println(aborted.cancel());
+  stdio.println(aborted.cancel());
+  stdio.println(aborted.next().is_none());
+  let Subscription<int> fresh = skipped.subscribe();
+  stdio.println(fresh.next().unwrap());
+  stdio.println(fresh.next().is_none());
+  return;
+}

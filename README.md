@@ -57,3 +57,7 @@ is this implementation's common map/filter/take workload.
 ## Compiler compatibility checkpoint (2026-10-06)
 
 This repository tracks the latest 10 compiler PRs as **unmerged proposals**, without changing its stable compiler pin or API behavior. See [docs/compiler-pr-sync.md](docs/compiler-pr-sync.md) for rx-ores-specific migration invariants, dependencies and validation gates.
+
+## Prototype comparison and conformance
+
+See [the cross-variant evaluation contract](docs/PROTOTYPE_EVALUATION.md). This repository is an experimental execution model, not the official Oreslang `rx` userland API. The `skip(source, count)` operator is added alongside `map`, `filter` and `take`; all performance conclusions require matching compiler revisions and measured workloads.
