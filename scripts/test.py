@@ -47,12 +47,11 @@ def run(args):
         sys.exit(result.stdout + result.stderr)
     return result.stdout.strip()
 
+TESTS = validate_cases(ROOT / 'tests', ('.out', '.err'))
 reject_legacy_pointer_syntax()
 if (ROOT / 'src/rx.atto').read_bytes() != (ROOT / 'src/rx.ores').read_bytes():
     sys.exit('src/rx.ores must be the byte-identical compatibility copy of src/rx.atto')
 
-TESTS = validate_cases(ROOT / 'tests', ('.out', '.err'))
-reject_legacy_pointer_syntax()
 run(['--check', str(ROOT / 'src/rx.ores')])
 for path in TESTS:
     # Runtime compilation resolves linked imports before ownership analysis.

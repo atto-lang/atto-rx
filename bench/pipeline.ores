@@ -1,34 +1,24 @@
-import * as rx from '../src/rx.ores';
-import class Observable, Subscription from '../src/rx.ores';
-
-pub async fnc main(): void {
+import * as rx from '../src/rx.atto';
+import class Observable, Subscription from '../src/rx.atto';
+fnc pipeline_checksum(): int {
+  val Observable<int> source = rx.from_values([1, 2, 3, 4, 5, 6, 7, 8]);
+  val Fnc<int, int> twice = |v| -> { return v * 2; };
+  val Observable<int> mapped = rx.map(source, twice);
+  val Fnc<int, bool> large = |v| -> { return v > 4; };
+  val Observable<int> filtered = rx.filter(mapped, large);
+  val Observable<int> skipped = rx.skip(filtered, 1);
+  val Observable<int> limited = rx.take(skipped, 2);
+  let mut Subscription<int> sub = limited.subscribe();
+  val int a = sub.next().unwrap();
+  val int b = sub.next().unwrap();
+  if !sub.next().is_none(); then Err("excess emission").expect("benchmark"); fi
+  return a + b;
+}
+pub fnc main(): void {
   let int checksum = 0;
-
-  for let iteration = 0; iteration < 20000; iteration++ do
-    val Observable<int> source = rx.from_values([1, 2, 3, 4, 5, 6, 7, 8]);
-    val Fnc<int, int> twice = |value| -> { return value * 2; };
-    val Observable<int> doubled = rx.map(source, twice);
-    val Fnc<int, bool> above_four = |value| -> {
-      val int item = value as int;
-      return item > 4;
-    };
-    val Observable<int> selected = rx.filter(doubled, above_four);
-    val Observable<int> limited = rx.take(selected, 3);
-    let mut Subscription<int> sub = limited.subscribe();
-
-    val int first_value = sub.next().unwrap() as int;
-    val int second_value = sub.next().unwrap() as int;
-    val int third_value = sub.next().unwrap() as int;
-    checksum = checksum + first_value;
-    checksum = checksum + second_value;
-    checksum = checksum + third_value;
-    val Option<int> terminal = sub.next();
-    if !terminal.is_none(); then
-      val Result<bool, String> failure = Err("take(3) produced an unexpected fourth value");
-      failure.expect("rx benchmark");
-    fi
+  for let i = 0; i < 200; i++ do
+    checksum = checksum + pipeline_checksum();
   done
-
   stdio.println(checksum);
   return;
 }
