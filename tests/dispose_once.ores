@@ -1,0 +1,32 @@
+import class Subscription from '../src/rx.ores';
+
+define class CountingSubscription extends Subscription<int> as
+  let int cleanup_calls = 0;
+
+  pub pull(mut self)(): Option<int> {
+    return None;
+  }
+
+  pub dispose(mut self)(): void {
+    self.cleanup_calls = self.cleanup_calls + 1;
+    return;
+  }
+
+  pub disposals(): int { return self.cleanup_calls; }
+end
+
+pub async fnc main(): void {
+  val CountingSubscription completed = new CountingSubscription();
+  stdio.println(completed.next().is_none());
+  stdio.println(completed.disposals());
+  stdio.println(completed.next().is_none());
+  stdio.println(completed.cancel());
+  stdio.println(completed.disposals());
+
+  val CountingSubscription cancelled = new CountingSubscription();
+  stdio.println(cancelled.cancel());
+  stdio.println(cancelled.cancel());
+  stdio.println(cancelled.next().is_none());
+  stdio.println(cancelled.disposals());
+  return;
+}
