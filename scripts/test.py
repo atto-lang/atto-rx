@@ -23,11 +23,23 @@ LEGACY_POINTER_PATTERNS = (
 
 def reject_legacy_pointer_syntax():
     for directory in ('src', 'tests', 'bench'):
-        for path in sorted((ROOT / directory).glob('*.ores')):
+        for path in checked_sources(ROOT / directory):
             source = path.read_text()
             for pattern, message in LEGACY_POINTER_PATTERNS:
                 if pattern.search(source):
                     sys.exit(f'{path}: {message}')
+
+def checked_sources(root):
+    # Validate all executable and regex-scanned .ores paths before opening them.
+    # Purely source-local preflight; this does not make a writable tree TOCTOU-safe.
+    if root.is_symlink() or (root.exists() and not root.is_dir()):
+        sys.exit(f'source directory must be a real directory: {root}')
+    parent = root.resolve(strict=True) if root.exists() else None
+    for path in sorted(root.glob('*.ores')):
+        if (path.is_symlink() or not path.is_file() or
+                path.resolve(strict=True).parent != parent):
+            sys.exit(f'source must be an in-tree regular file: {path}')
+        yield path
 
 def run(args):
     result = subprocess.run(COMMAND + args, text=True, capture_output=True, timeout=30)
