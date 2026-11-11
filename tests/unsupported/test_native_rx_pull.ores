@@ -1,13 +1,13 @@
 // Canonical native Oreslang test suite for pull/Future-style observables.
-import * as rx from '../src/rx.ores';
-import class Observable, Subscription from '../src/rx.ores';
+import * as rx from '../../src/rx.ores';
+import class Observable, Subscription from '../../src/rx.ores';
 import class TestCase, TestSuite, TestOptions, TestOutcome, RunSummary from "ores.std/testing";
 import fnc expect_true, run_suite, require_success from "ores.std/testing";
 
 fnc cold_subscribers_have_independent_cursors(): TestOutcome {
   val Observable<int> source = rx.from_values([11, 12, 13]);
-  let Subscription<int> a = source.subscribe();
-  let Subscription<int> b = source.subscribe();
+  let mut Subscription<int> a = source.subscribe();
+  let mut Subscription<int> b = source.subscribe();
   val Option<int> a_first = a.next();
   val Option<int> a_second = a.next();
   val Option<int> b_first = b.next();
@@ -22,7 +22,7 @@ fnc cold_subscribers_have_independent_cursors(): TestOutcome {
 fnc take_zero_does_not_pull(): TestOutcome {
   val Observable<int> source = rx.from_values([1, 2, 3]);
   val Observable<int> limited = rx.take(source, 0);
-  let Subscription<int> sub = limited.subscribe();
+  let mut Subscription<int> sub = limited.subscribe();
   val Option<int> item = sub.next();
   val bool stopped = item.is_none();
   val bool was_cancelled = sub.cancel();
@@ -32,7 +32,7 @@ fnc take_zero_does_not_pull(): TestOutcome {
 
 fnc take_two_completes_after_two(): TestOutcome {
   val Observable<int> limited = rx.take(rx.from_values([4, 5, 6]), 2);
-  let Subscription<int> sub = limited.subscribe();
+  let mut Subscription<int> sub = limited.subscribe();
   val Option<int> a = sub.next();
   val Option<int> b = sub.next();
   val Option<int> end_frame = sub.next();
@@ -47,7 +47,7 @@ fnc map_and_filter_compose_in_demand_order(): TestOutcome {
   val Fnc<int, bool> even = |value| -> { return value - (value / 2) * 2 == 0; };
   val Fnc<int, int> twice = |value| -> { return value * 2; };
   val Observable<int> mapped = rx.map(rx.filter(source, even), twice);
-  let Subscription<int> sub = mapped.subscribe();
+  let mut Subscription<int> sub = mapped.subscribe();
   val Option<int> first = sub.next();
   val Option<int> second = sub.next();
   val Option<int> exhausted = sub.next();
@@ -59,7 +59,7 @@ fnc map_and_filter_compose_in_demand_order(): TestOutcome {
 
 fnc cancellation_is_idempotent(): TestOutcome {
   val Observable<int> source = rx.from_values([1, 2]);
-  let Subscription<int> sub = source.subscribe();
+  let mut Subscription<int> sub = source.subscribe();
   val bool first = sub.cancel();
   val bool second = sub.cancel();
   val Option<int> after_cancel = sub.next();
@@ -67,7 +67,7 @@ fnc cancellation_is_idempotent(): TestOutcome {
     "cancel twice must not re-run cleanup or deliver values");
 }
 
-pub routine main(): void {
+pub fnc main(): void {
   val TestSuite suite = new TestSuite("rx-pull", arr[
     new TestCase("cold_subscribers_have_independent_cursors", cold_subscribers_have_independent_cursors, false, ""),
     new TestCase("take_zero_does_not_pull", take_zero_does_not_pull, false, ""),

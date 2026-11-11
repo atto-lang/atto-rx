@@ -35,7 +35,7 @@ def checked_sources(root):
     if root.is_symlink() or (root.exists() and not root.is_dir()):
         sys.exit(f'source directory must be a real directory: {root}')
     parent = root.resolve(strict=True) if root.exists() else None
-    for path in sorted(root.glob('*.ores')):
+    for path in sorted([*root.glob('*.ores'), *root.glob('*.atto')]):
         if (path.is_symlink() or not path.is_file() or
                 path.resolve(strict=True).parent != parent):
             sys.exit(f'source must be an in-tree regular file: {path}')
@@ -47,11 +47,15 @@ def run(args):
         sys.exit(result.stdout + result.stderr)
     return result.stdout.strip()
 
+reject_legacy_pointer_syntax()
+if (ROOT / 'src/rx.atto').read_bytes() != (ROOT / 'src/rx.ores').read_bytes():
+    sys.exit('src/rx.ores must be the byte-identical compatibility copy of src/rx.atto')
+
 TESTS = validate_cases(ROOT / 'tests', ('.out', '.err'))
 reject_legacy_pointer_syntax()
 run(['--check', str(ROOT / 'src/rx.ores')])
 for path in TESTS:
-    run(['--check', str(path)])
+    # Runtime compilation resolves linked imports before ownership analysis.
     failure_file = path.with_suffix('.err')
     if failure_file.is_file():
         failed = subprocess.run(COMMAND + [str(path)], text=True,

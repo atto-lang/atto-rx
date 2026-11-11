@@ -4,8 +4,8 @@ import class Observable, Subscription from '../src/rx.ores';
 pub async fnc main(): void {
   val Observable<int> source = rx.from_values([1, 2, 3]);
   val Observable<int> skipped = rx.skip(source, 1);
-  let Subscription<int> first = skipped.subscribe();
-  let Subscription<int> second = skipped.subscribe();
+  let mut Subscription<int> first = skipped.subscribe();
+  let mut Subscription<int> second = skipped.subscribe();
   stdio.println(first.next().unwrap());
   stdio.println(second.next().unwrap());
   stdio.println(first.next().unwrap());

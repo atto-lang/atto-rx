@@ -1,4 +1,4 @@
-import class Subscription from '../src/rx.ores';
+import class Subscription from '../../src/rx.ores';
 
 define class CountingSubscription extends Subscription<int> as
   let int cleanup_calls = 0;

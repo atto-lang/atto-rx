@@ -72,7 +72,7 @@ class RuntimeCompilerIdentityTest(unittest.TestCase):
     def test_compiler_tree_mirror_identity(self):
         with tempfile.TemporaryDirectory() as root:
             source, cp = self.built(root)
-            (Path(root) / "compiler-tree.txt").write_text(PIN_A + "\\n")
+            (Path(root) / "compiler-tree.txt").write_text(PIN_A + "\n")
             with patch("subprocess.run", return_value=SimpleNamespace(returncode=0, stdout=PIN_B)):
                 with self.assertRaisesRegex(SystemExit, "does not match compiler-tree.txt"):
                     require_live_compiler_checkout(PIN_A, cp, Path(root))

@@ -1,0 +1,18 @@
+pub define class Cursor as
+ let int index = 0;
+ pub constructor() { stdio.println("open"); }
+ pub read(mut self)(): Option<int> {
+   if self.index == 6; then return None; fi
+   self.index = self.index + 1;
+   stdio.println("read");
+   return Some(self.index);
+ }
+end
+pub fnc close(): void { stdio.println("close"); return; }
+pub fnc twice(int value): int { return value * 2; }
+pub fnc large(int value): bool { return value > 4; }
+// Integer division by zero is an ordinary catchable guest runtime error.
+pub fnc fail(int value): int { val Array<int> empty = []; return empty[1]; }
+pub fnc fail_close(): void { stdio.println("close throws"); val Array<int> empty = []; stdio.println(empty[1]); return; }
+
+pub fnc mark_open(): void { stdio.println("open"); return; }
