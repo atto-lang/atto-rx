@@ -1,63 +1,27 @@
-# rx-ores
+# atto-rx
 
-Standalone pull/Future-oriented reactive streams for Oreslang.
+Reactive programming utilities and stream composition for AttoLang.
 
-This repository is the home of rx-ores. The compiler/runtime owns generic
-language primitives such as `Future<T>`, `await`, callables, ownership and
-scheduling; it does **not** own the reactive library.
+## Responsibilities
 
-## Source model
+Reactive composition, stream contracts, and interactions with actors, tasks, and channels.
 
-`src/rx.ores` is a file/code unit, not an implicit module or package. Its nominal classes are ordinary top-level file-scoped declarations and consumers select them explicitly with `import class`; the file is not wrapped in a synthetic module:
+## Design guidelines
 
-```ores
-import * as rx from './src/rx.ores';
-import class Observable, Subscription from './src/rx.ores';
-```
+- Keep application-facing contracts separate from hosted Atto services.
+- Explicitly specify error, cancellation, concurrency, and resource-lifecycle behavior where applicable.
+- Document supported compiler backends, host restrictions, wire formats, and compatibility constraints.
 
-The initial implementation is demand-driven. `subscribe()` creates independent
-subscription state and each `next()` admits at most one item. There is no
-prefetch queue. `take(0)` consumes nothing and cancellation is idempotent.
+## Development and verification
 
-RX APIs use Oreslang's pointerless ownership model. Callback signatures use
-ordinary managed value/reference types such as `Fnc<T, bool>`; they never encode
-ownership with `&T`, `T*`, unary `&`, or unary `*`. When this library needs
-to make a temporary read borrow explicit, it uses `rt borrow value`. Explicit
-ownership transitions belong to the reserved runtime surface (`rt copy`,
-`rt share`, `rt borrow`, `rt take`, and related runtime reference
-operations), not C/Rust-style pointer operators.
+Use the source tree and CI for verified build/test commands. Tests should cover positive cases, invalid inputs, lifecycle behavior, and cross-backend interoperability where relevant.
 
-Finite pull state is stored directly in subscription objects. `from_future()`
-uses Oreslang's native Future/await suspension path; it does not invent a second
-callback scheduler. Native Future values may be prepared first with `map`,
-`compose` / `flatMap`, and `onSuccess`; guest callbacks resume as Ores
-scheduler/actor turns rather than producer-thread callbacks. Higher-order
-operators currently include `map`, `filter` and `take`.
+## Status
 
-This repository intentionally stays separate from:
-- **rx-ores-callbacks** — synchronous push/callback composition.
-- **rx-oreslang-channels** — pull semantics whose coordination state and hot
-  sources use Channel/select.
+This README describes the project's intended role. It does not imply that the listed APIs or platforms are already implemented or supported.
 
-The separation is deliberate so identical workloads can measure the costs and
-strengths of each execution model before any hybrid/high-performance library is
-designed.
+## Related
 
-## Validation
-
-```sh
-python3 scripts/setup.py
-source .work/env.sh
-python3 scripts/test.py
-```
-
-The benchmark driver lives in `bench/benchmark.py`; `bench/pipeline.ores`
-is this implementation's common map/filter/take workload.
-
-## Compiler compatibility checkpoint (2026-10-06)
-
-This repository tracks the latest 10 compiler PRs as **unmerged proposals**, without changing its stable compiler pin or API behavior. See [docs/compiler-pr-sync.md](docs/compiler-pr-sync.md) for rx-ores-specific migration invariants, dependencies and validation gates.
-
-## Prototype comparison and conformance
-
-See [the cross-variant evaluation contract](docs/PROTOTYPE_EVALUATION.md). This repository is an experimental execution model, not the official Oreslang `rx` userland API. The `skip(source, count)` operator is added alongside `map`, `filter` and `take`; all performance conclusions require matching compiler revisions and measured workloads.
+- [AttoLang](https://github.com/atto-lang)
+- [Language specification](https://github.com/atto-lang/atto-spec)
+- [Platform conformance](https://github.com/atto-lang/atto-platform-conformance)
