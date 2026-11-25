@@ -1,0 +1,11 @@
+import * as rx from '../src/rx.ores';
+import class Observable, Subscription from '../src/rx.ores';
+
+pub async fnc main(): void {
+  val Observable<int> source = rx.from_values([1, 2]);
+  let mut Subscription<int> sub = source.subscribe();
+  stdio.println(sub.cancel());
+  stdio.println(sub.cancel());
+  stdio.println(sub.next().is_none());
+  return;
+}

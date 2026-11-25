@@ -4,10 +4,11 @@
 // a local namespace with a relative wildcard import and import nominal classes
 // explicitly when they want static type names.
 
-define class Subscription<T> as
+pub define class Subscription<T> as
   let bool cancelled = false;
   let bool finished = false;
   let bool pulling = false;
+  let bool disposed = false;
 
   pub next(mut self)(): Option<T> {
     if self.cancelled || self.finished; then
@@ -19,20 +20,21 @@ define class Subscription<T> as
     fi
 
     self.pulling = true;
+    let bool settled = false;
     try {
       val Option<T> frame = self.pull();
       if frame.is_none(); then
         self.finished = true;
-        self.dispose();
+        self.dispose_once();
       fi
+      settled = true;
       return frame;
-    } catch (err) {
-      self.finished = true;
-      self.dispose();
-      val Result<Option<T>, Object> failure = Err(err);
-      return failure.expect("rx upstream failed");
     } finally {
       self.pulling = false;
+      if !settled; then
+        self.finished = true;
+        self.dispose_once();
+      fi
     }
   }
 
@@ -44,17 +46,28 @@ define class Subscription<T> as
     return;
   }
 
+  // Acquire cleanup before invoking downstream destructors; exceptions must
+  // never re-enter dispose or cancel an upstream subscription twice.
+  dispose_once(mut self)(): void {
+    if self.disposed; then
+      return;
+    fi
+    self.disposed = true;
+    self.dispose();
+    return;
+  }
+
   pub cancel(mut self)(): bool {
     if self.cancelled || self.finished; then
       return false;
     fi
     self.cancelled = true;
-    self.dispose();
+    self.dispose_once();
     return true;
   }
 end
 
-define class Observable<T> as
+pub define class Observable<T> as
   pub subscribe(): Subscription<T> {
     return new Subscription<T>();
   }
@@ -98,40 +111,6 @@ end
 
 pub fnc from_values<T>(Array<T> values): Observable<T> {
   return new ValuesObservable<T>(values);
-}
-
-define class FutureSubscription<T> extends Subscription<T> as
-  val Future<T> pending;
-  let bool emitted = false;
-
-  constructor(Future<T> pending) {
-    self.pending = pending;
-  }
-
-  pub pull(mut self)(): Option<T> {
-    if self.emitted; then
-      return None;
-    fi
-    self.emitted = true;
-    val T value = await self.pending;
-    return Some(value);
-  }
-end
-
-define class FutureObservable<T> extends Observable<T> as
-  val Future<T> pending;
-
-  constructor(Future<T> pending) {
-    self.pending = pending;
-  }
-
-  pub subscribe(): Subscription<T> {
-    return new FutureSubscription<T>(self.pending);
-  }
-end
-
-pub fnc from_future<T>(Future<T> pending): Observable<T> {
-  return new FutureObservable<T>(pending);
 }
 
 define class MapSubscription<A, B> extends Subscription<B> as
@@ -256,11 +235,17 @@ define class TakeObservable<T> extends Observable<T> as
   val int count;
 
   constructor(Observable<T> source, int count) {
+    if count < 0; then
+      val Result<bool, String> failure = Err("take count must be nonnegative");
+      failure.expect("rx.take");
+    fi
     self.source = source;
     self.count = count;
   }
 
   pub subscribe(): Subscription<T> {
+    // Zero demand must not even acquire/open the upstream resource.
+    if self.count == 0; then return new Subscription<T>(); fi
     return new TakeSubscription<T>(self.source.subscribe(), self.count);
   }
 end
@@ -277,9 +262,100 @@ pub fnc take<T>(Observable<T> source, int count): Observable<T> {
   return new TakeObservable<T>(source, count);
 }
 
-pub fnc first<T>(Observable<T> source): Option<T> {
-  let Subscription<T> sub = source.subscribe();
-  val Option<T> value = sub.next();
-  sub.cancel();
-  return value;
+
+// Skip does not buffer or prefetch: it requests only enough items to satisfy
+// the next downstream pull. Its remaining count belongs to this subscription.
+define class SkipSubscription<T> extends Subscription<T> as
+  val Subscription<T> upstream;
+  let int remaining;
+
+  constructor(Subscription<T> upstream, int count) {
+    if count < 0; then
+      val Result<bool, String> failure = Err("skip count must be nonnegative");
+      failure.expect("rx.skip");
+    fi
+    self.upstream = upstream;
+    self.remaining = count;
+  }
+
+  pub pull(mut self)(): Option<T> {
+    loop {
+      if self.remaining == 0; then
+        return self.upstream.next();
+      fi
+      val Option<T> dropped = self.upstream.next();
+      if dropped.is_none(); then
+        self.remaining = 0;
+        return None;
+      fi
+      self.remaining = self.remaining - 1;
+    }
+  }
+
+  pub dispose(mut self)(): void {
+    self.upstream.cancel();
+    return;
+  }
+end
+
+define class SkipObservable<T> extends Observable<T> as
+  val Observable<T> source;
+  val int count;
+
+  constructor(Observable<T> source, int count) {
+    if count < 0; then
+      val Result<bool, String> failure = Err("skip count must be nonnegative");
+      failure.expect("rx.skip");
+    fi
+    self.source = source;
+    self.count = count;
+  }
+
+  pub subscribe(): Subscription<T> {
+    return new SkipSubscription<T>(self.source.subscribe(), self.count);
+  }
+end
+
+pub fnc skip<T>(Observable<T> source, int count): Observable<T> {
+  return new SkipObservable<T>(source, count);
+}
+
+pub fnc first<T>(borrow Observable<T> source): Option<T> {
+  let mut Subscription<T> sub = source.subscribe();
+  try {
+    return sub.next();
+  } finally {
+    sub.cancel();
+  }
+}
+
+// Resource factories run once per subscription. Each Reader owns its callbacks.
+pub define class Reader<T> as
+  val Fnc<Option<T>> read_next;
+  val Fnc<void> close;
+  pub constructor(Fnc<Option<T>> read_next, Fnc<void> close) {
+    self.read_next = read_next;
+    self.close = close;
+  }
+  pub read(): Option<T> { return self.read_next(); }
+  pub dispose(): void { self.close(); return; }
+end
+
+define class ReaderSubscription<T> extends Subscription<T> as
+  val Reader<T> reader;
+  constructor(Reader<T> reader) { self.reader = reader; }
+  pub pull(mut self)(): Option<T> { return self.reader.read(); }
+  pub dispose(mut self)(): void { self.reader.dispose(); return; }
+end
+
+define class ReaderObservable<T> extends Observable<T> as
+  val Fnc<Reader<T>> open;
+  constructor(Fnc<Reader<T>> open) { self.open = open; }
+  pub subscribe(): Subscription<T> {
+    return new ReaderSubscription<T>(self.open());
+  }
+end
+
+pub fnc using<T>(Fnc<Reader<T>> open): Observable<T> {
+  return new ReaderObservable<T>(open);
 }

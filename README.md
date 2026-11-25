@@ -51,3 +51,14 @@ The historical predecessor is [ores-truffle-oreslang/rx-ores](https://github.com
 Portable reactive API semantics and bounded operator contracts belong here; compiler scheduler internals and managed event-streaming services do not. [atto-lang](https://github.com/atto-lang) owns language, portable libraries, compilers, tooling, tests and examples; [atto-co](https://github.com/atto-co) separately governs hosted deployment, tenant infrastructure, identity and billing. Future transfers or carve-outs require separate source/target owner authorization, independent security review and rollback ownership. Inventory exact SHA/tree, numeric ID, history, access, visibility, protections, PRs, releases, packages, consumers, Actions/runners, secrets, applications, webhooks, deploy keys and Pages. Never mirror private source without explicit authorization. Verify identity/history and restored controls after any authorized transfer, then execute exact-head tests before changing consumers. Zero-step jobs are NOT_EXECUTED; host-only checks do not establish compiled guest execution or production readiness.
 
 Historical planning: [coordination issue #26](https://github.com/ores-truffle-oreslang/.github/issues/26) and [migration runbook #25](https://github.com/ores-truffle-oreslang/.github/pull/25).
+
+## Executable Java milestone
+
+This migration branch contains the real guest stream implementation and tests.
+`src/rx.atto` is canonical, with a verified byte-identical `.ores` compatibility
+entry. The supported profile is synchronous pull or synchronous callbacks,
+respectively; Future/actor/backend parity is not implied.
+
+See [migration, commands and known blockers](docs/MIGRATION_EXECUTION.md).
+The incremental CLI applies map/filter/skip/take to stdin and emits `beta!` then
+`gamma!` for the documented input. It terminates without waiting for EOF.

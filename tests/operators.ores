@@ -11,15 +11,15 @@ pub async fnc main(): void {
   };
   val Observable<int> selected = rx.filter(doubled, large);
   val Observable<int> limited = rx.take(selected, 2);
-  let Subscription<int> sub = limited.subscribe();
+  let mut Subscription<int> sub = limited.subscribe();
 
   stdio.println(sub.next().unwrap());
   stdio.println(sub.next().unwrap());
   stdio.println(sub.next().is_none());
   // An independent subscriber must preserve order without sharing a cursor.
   val Observable<int> pair = rx.from_values([9, 8]);
-  let Subscription<int> again = pair.subscribe();
-  if again.next().unwrap() != 9 then panic("fresh stream first element"); fi
-  if again.next().unwrap() != 8 then panic("fresh stream second element"); fi
+  let mut Subscription<int> again = pair.subscribe();
+  if again.next().unwrap() != 9 then Err("fresh stream first element").expect("rx assertion"); fi
+  if again.next().unwrap() != 8 then Err("fresh stream second element").expect("rx assertion"); fi
   return;
 }

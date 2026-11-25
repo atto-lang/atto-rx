@@ -1,0 +1,37 @@
+// Legacy adapter: blocked by borrow-across-await on the current compiler.
+import class Observable, Subscription from './rx.ores';
+
+define class FutureSubscription<T> extends Subscription<T> as
+  val Future<T> pending;
+  let bool emitted = false;
+
+  constructor(Future<T> pending) {
+    self.pending = pending;
+  }
+
+  pub pull(mut self)(): Option<T> {
+    if self.emitted; then
+      return None;
+    fi
+    self.emitted = true;
+    val T value = await self.pending;
+    return Some(value);
+  }
+end
+
+define class FutureObservable<T> extends Observable<T> as
+  val Future<T> pending;
+
+  constructor(Future<T> pending) {
+    self.pending = pending;
+  }
+
+  pub subscribe(): Subscription<T> {
+    return new FutureSubscription<T>(self.pending);
+  }
+end
+
+pub fnc from_future<T>(Future<T> pending): Observable<T> {
+  return new FutureObservable<T>(pending);
+}
+

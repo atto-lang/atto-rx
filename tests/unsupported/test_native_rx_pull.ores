@@ -1,0 +1,82 @@
+// Canonical native Oreslang test suite for pull/Future-style observables.
+import * as rx from '../../src/rx.ores';
+import class Observable, Subscription from '../../src/rx.ores';
+import class TestCase, TestSuite, TestOptions, TestOutcome, RunSummary from "ores.std/testing";
+import fnc expect_true, run_suite, require_success from "ores.std/testing";
+
+fnc cold_subscribers_have_independent_cursors(): TestOutcome {
+  val Observable<int> source = rx.from_values([11, 12, 13]);
+  let mut Subscription<int> a = source.subscribe();
+  let mut Subscription<int> b = source.subscribe();
+  val Option<int> a_first = a.next();
+  val Option<int> a_second = a.next();
+  val Option<int> b_first = b.next();
+  val bool good = a_first.is_some() && a_first.unwrap() == 11
+    && a_second.is_some() && a_second.unwrap() == 12
+    && b_first.is_some() && b_first.unwrap() == 11;
+  a.cancel();
+  b.cancel();
+  return expect_true(good, "cold subscription cursors must be independent");
+}
+
+fnc take_zero_does_not_pull(): TestOutcome {
+  val Observable<int> source = rx.from_values([1, 2, 3]);
+  val Observable<int> limited = rx.take(source, 0);
+  let mut Subscription<int> sub = limited.subscribe();
+  val Option<int> item = sub.next();
+  val bool stopped = item.is_none();
+  val bool was_cancelled = sub.cancel();
+  return expect_true(stopped && !was_cancelled,
+    "take(0) must finish without producing an element");
+}
+
+fnc take_two_completes_after_two(): TestOutcome {
+  val Observable<int> limited = rx.take(rx.from_values([4, 5, 6]), 2);
+  let mut Subscription<int> sub = limited.subscribe();
+  val Option<int> a = sub.next();
+  val Option<int> b = sub.next();
+  val Option<int> end_frame = sub.next();
+  val bool good = a.is_some() && a.unwrap() == 4
+    && b.is_some() && b.unwrap() == 5 && end_frame.is_none();
+  sub.cancel();
+  return expect_true(good, "take(2) must end after the second value");
+}
+
+fnc map_and_filter_compose_in_demand_order(): TestOutcome {
+  val Observable<int> source = rx.from_values([1, 2, 3, 4]);
+  val Fnc<int, bool> even = |value| -> { return value - (value / 2) * 2 == 0; };
+  val Fnc<int, int> twice = |value| -> { return value * 2; };
+  val Observable<int> mapped = rx.map(rx.filter(source, even), twice);
+  let mut Subscription<int> sub = mapped.subscribe();
+  val Option<int> first = sub.next();
+  val Option<int> second = sub.next();
+  val Option<int> exhausted = sub.next();
+  val bool good = first.is_some() && first.unwrap() == 4
+    && second.is_some() && second.unwrap() == 8 && exhausted.is_none();
+  sub.cancel();
+  return expect_true(good, "filter/map did not preserve sequence");
+}
+
+fnc cancellation_is_idempotent(): TestOutcome {
+  val Observable<int> source = rx.from_values([1, 2]);
+  let mut Subscription<int> sub = source.subscribe();
+  val bool first = sub.cancel();
+  val bool second = sub.cancel();
+  val Option<int> after_cancel = sub.next();
+  return expect_true(first && !second && after_cancel.is_none(),
+    "cancel twice must not re-run cleanup or deliver values");
+}
+
+pub fnc main(): void {
+  val TestSuite suite = new TestSuite("rx-pull", arr[
+    new TestCase("cold_subscribers_have_independent_cursors", cold_subscribers_have_independent_cursors, false, ""),
+    new TestCase("take_zero_does_not_pull", take_zero_does_not_pull, false, ""),
+    new TestCase("take_two_completes_after_two", take_two_completes_after_two, false, ""),
+    new TestCase("map_and_filter_compose_in_demand_order", map_and_filter_compose_in_demand_order, false, ""),
+    new TestCase("cancellation_is_idempotent", cancellation_is_idempotent, false, "")
+  ]);
+  val TestOptions options = new TestOptions("", false, true);
+  val RunSummary summary = run_suite(rt borrow suite, rt borrow options);
+  require_success(rt borrow summary);
+  return;
+}

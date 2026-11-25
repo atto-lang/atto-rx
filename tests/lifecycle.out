@@ -1,0 +1,35 @@
+zero
+true
+pipeline
+open
+read
+read
+read
+read
+8
+read
+close
+10
+true
+independent
+open
+open
+read
+1
+read
+2
+read
+1
+close
+close
+exception
+open
+read
+close
+caught
+throwing cleanup
+open
+close throws
+caught close
+false
+true

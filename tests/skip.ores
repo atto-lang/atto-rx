@@ -1,0 +1,18 @@
+import * as rx from '../src/rx.ores';
+import class Observable, Subscription from '../src/rx.ores';
+
+pub async fnc main(): void {
+  val Observable<int> source = rx.from_values([1, 2, 3, 4, 5]);
+  val Observable<int> skipped = rx.skip(source, 2);
+  val Observable<int> limited = rx.take(skipped, 2);
+  let mut Subscription<int> sub = limited.subscribe();
+  stdio.println(sub.next().unwrap());
+  stdio.println(sub.next().unwrap());
+  stdio.println(sub.next().is_none());
+  let mut Subscription<int> zero = rx.skip(rx.from_values([7]), 0).subscribe();
+  stdio.println(zero.next().unwrap());
+  stdio.println(zero.next().is_none());
+  let mut Subscription<int> empty = rx.skip(rx.from_values([1, 2]), 10).subscribe();
+  stdio.println(empty.next().is_none());
+  return;
+}

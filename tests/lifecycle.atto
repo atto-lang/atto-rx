@@ -1,0 +1,62 @@
+import fnc close, twice, large, fail, fail_close, mark_open from './support/cursor.atto';
+import * as rx from '../src/rx.atto';
+import class Reader, Observable, Subscription from '../src/rx.atto';
+
+fnc open_cursor(): Reader<int> {
+  mark_open();
+  let int index = 0;
+  val Fnc<Option<int>> read = || -> {
+    if index == 6; then return None; fi
+    index = index + 1;
+    stdio.println("read");
+    return Some(index);
+  };
+  val Fnc<void> finish = || -> { close(); return; };
+  return new Reader<int>(read, finish);
+}
+fnc open_throwing(): Reader<int> {
+  mark_open();
+  let int index = 0;
+  val Fnc<Option<int>> read = || -> {
+    if index == 6; then return None; fi
+    index = index + 1;
+    stdio.println("read");
+    return Some(index);
+  };
+  val Fnc<void> finish = || -> { fail_close(); return; };
+  return new Reader<int>(read, finish);
+}
+pub fnc main(): void {
+  stdio.println("zero");
+  let mut Subscription<int> zero = rx.take(rx.using(open_cursor), 0).subscribe();
+  stdio.println(zero.next().is_none());
+  zero.cancel();
+  stdio.println("pipeline");
+  val Observable<int> source = rx.using(open_cursor);
+  val Observable<int> mapped = rx.map(source, twice);
+  val Observable<int> filtered = rx.filter(mapped, large);
+  val Observable<int> skipped = rx.skip(filtered, 1);
+  val Observable<int> limited = rx.take(skipped, 2);
+  let mut Subscription<int> sub = limited.subscribe();
+  stdio.println(sub.next().unwrap());
+  stdio.println(sub.next().unwrap());
+  stdio.println(sub.next().is_none());
+  sub.cancel();
+  stdio.println("independent");
+  val Observable<int> cold = rx.using(open_cursor);
+  let mut Subscription<int> a = cold.subscribe();
+  let mut Subscription<int> b = cold.subscribe();
+  stdio.println(a.next().unwrap());
+  stdio.println(a.next().unwrap());
+  stdio.println(b.next().unwrap());
+  a.cancel(); b.cancel();
+  stdio.println("exception");
+  val Observable<int> failing = rx.map(rx.using(open_cursor), fail);
+  try { rx.first(rt borrow failing); } catch (err) { stdio.println("caught"); }
+  stdio.println("throwing cleanup");
+  let mut Subscription<int> throwing = rx.using(open_throwing).subscribe();
+  try { throwing.cancel(); } catch (err) { stdio.println("caught close"); }
+  stdio.println(throwing.cancel());
+  stdio.println(throwing.next().is_none());
+  return;
+}

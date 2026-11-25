@@ -1,0 +1,21 @@
+import fnc decorate, nonempty, read_line, close_input from './io.atto';
+import * as rx from '../src/rx.atto';
+import class Reader, Observable, Subscription from '../src/rx.atto';
+fnc open_input(): Reader<String> {
+  val Fnc<Option<String>> read = || -> { return read_line(); };
+  val Fnc<void> finish = || -> { close_input(); return; };
+  return new Reader<String>(read, finish);
+}
+pub fnc main(): void {
+  val Observable<String> source = rx.using(open_input);
+  val Observable<String> selected = rx.take(rx.skip(rx.filter(rx.map(source, decorate), nonempty), 1), 2);
+  let mut Subscription<String> sub = selected.subscribe();
+  try {
+    loop {
+      val Option<String> frame = sub.next();
+      if frame.is_none(); then break; fi
+      stdio.println(frame.unwrap());
+    }
+  } finally { sub.cancel(); }
+  return;
+}
