@@ -1,70 +1,53 @@
-# rx-ores
+> **AI agent instructions (organization-wide):** Before working on code, issues, or pull requests, read and follow the [organization `AGENTS.md`](https://github.com/atto-lang/.github/blob/main/AGENTS.md), including its **merge-first stealth-development policy**. Honor any repository-local `AGENTS.md`, explicit holds, and GitHub-enforced rules.
 
-Standalone pull/Future-oriented reactive streams for Oreslang.
+# atto-rx
 
-This repository is the home of rx-ores. The compiler/runtime owns generic
-language primitives such as `Future<T>`, `await`, callables, ownership and
-scheduling; it does **not** own the reactive library.
+Reactive programming utilities and stream composition for AttoLang.
 
-## Source model
+## Naming migration and language authority
 
-`src/rx.ores` is a file/code unit, not an implicit module or package. Its nominal classes are ordinary top-level file-scoped declarations and consumers select them explicitly with `import class`; the file is not wrapped in a synthetic module:
+This repository is maintained at [atto-lang/atto-rx](https://github.com/atto-lang/atto-rx); use `https://github.com/atto-lang/atto-rx.git` for Git remotes and canonical `.atto` source examples. The normative language contract is [atto-spec](https://github.com/atto-lang/atto-spec), with executable guest evidence tracked by [atto-platform-conformance](https://github.com/atto-lang/atto-platform-conformance). Follow current ownership, borrowing, effects, actor, and syntax rules there; do not infer implemented features from a README or unexecuted CI.
 
-```ores
-import * as rx from './src/rx.ores';
-import class Observable, Subscription from './src/rx.ores';
-```
+## Responsibilities
 
-The initial implementation is demand-driven. `subscribe()` creates independent
-subscription state and each `next()` admits at most one item. There is no
-prefetch queue. `take(0)` consumes nothing and cancellation is idempotent.
+Reactive composition, stream contracts, and interactions with actors, tasks, and channels.
 
-RX APIs use Oreslang's pointerless ownership model. Callback signatures use
-ordinary managed value/reference types such as `Fnc<T, bool>`; they never encode
-ownership with `&T`, `T*`, unary `&`, or unary `*`. When this library needs
-to make a temporary read borrow explicit, it uses `rt borrow value`. Explicit
-ownership transitions belong to the reserved runtime surface (`rt copy`,
-`rt share`, `rt borrow`, `rt take`, and related runtime reference
-operations), not C/Rust-style pointer operators.
+## Design guidelines
 
-Finite pull state is stored directly in subscription objects. `from_future()`
-uses Oreslang's native Future/await suspension path; it does not invent a second
-callback scheduler. Native Future values may be prepared first with `map`,
-`compose` / `flatMap`, and `onSuccess`; guest callbacks resume as Ores
-scheduler/actor turns rather than producer-thread callbacks. Higher-order
-operators currently include `map`, `filter` and `take`.
+- Keep application-facing contracts separate from hosted Atto services.
+- Explicitly specify error, cancellation, concurrency, and resource-lifecycle behavior where applicable.
+- Document supported compiler backends, host restrictions, wire formats, and compatibility constraints.
 
-This repository intentionally stays separate from:
-- **rx-ores-callbacks** — synchronous push/callback composition.
-- **rx-oreslang-channels** — pull semantics whose coordination state and hot
-  sources use Channel/select.
+## Development and verification
 
-The separation is deliberate so identical workloads can measure the costs and
-strengths of each execution model before any hybrid/high-performance library is
-designed.
+Use the source tree and CI for verified build/test commands. Tests should cover positive cases, invalid inputs, lifecycle behavior, and cross-backend interoperability where relevant.
 
-## Validation
+## Status
 
-```sh
-python3 scripts/setup.py
-source .work/env.sh
-python3 scripts/test.py
-```
+This README describes the project's intended role. It does not imply that the listed APIs or platforms are already implemented or supported.
 
-The benchmark driver lives in `bench/benchmark.py`; `bench/pipeline.ores`
-is this implementation's common map/filter/take workload.
+## Related
 
-## Compiler compatibility checkpoint (2026-10-06)
+- [AttoLang](https://github.com/atto-lang)
+- [Language specification](https://github.com/atto-lang/atto-spec)
+- [Platform conformance](https://github.com/atto-lang/atto-platform-conformance)
 
-This repository tracks the latest 10 compiler PRs as **unmerged proposals**, without changing its stable compiler pin or API behavior. See [docs/compiler-pr-sync.md](docs/compiler-pr-sync.md) for rx-ores-specific migration invariants, dependencies and validation gates.
+## Repository ownership and contribution routing
 
-## Repository ownership and migration (2026-11-08)
+**Belongs here:** General reactive stream composition, flow control, subscriptions and stream-to-actor/task integration.
 
-This repo is currently `ores-truffle-oreslang/rx-ores`. The public language name is **AttoLang**; preserve `.ores` compatibility and old repo/package/CLI IDs until a separate compiler-backed and consumer-reviewed change proves replacement.
+**Belongs elsewhere:** Per-channel observable adapters in atto-rx-channels; task combinators in atto-rx-tasks; callback bridges in atto-rx-callbacks.
 
-- **Belongs here:** portable reactive API semantics and bounded operator contracts.
-- **Does not belong here:** compiler scheduler internals or managed event streaming SaaS.
-- **Organization model:** [atto-lang](https://github.com/atto-lang) owns portable language libraries, compilers, tools, tests, core/std and examples. [atto-co](https://github.com/atto-co) separately owns managed hosting, tenant/deployment control, identity, billing and SaaS. Existing similarly named `atto-*` repos should be audited for overlap but are not necessarily transfers of this source identity.
-- **Initial proposed move:** this original numeric GitHub repository ID and history into `atto-lang/rx-ores` retaining the old name. Current migration wave authorizes zero direct moves into `atto-co`. Future product carve-outs require new owner/security approval.
+**Security and portability boundary:** Explicitly bound buffering/backpressure, close and cancel races, and do not transfer closures through actor channels.
 
-**Safe transfer:** announce in [issue #26](https://github.com/ores-truffle-oreslang/.github/issues/26), follow [private migration draft #25](https://github.com/ores-truffle-oreslang/.github/pull/25). Record exact source SHA/tree, ID, release tags, PRs, packages, dependencies, branch/ruleset protections, target visibility and rights, Actions/runners, App/webhook permissions, secrets, Pages, rollback authority, source/target admins and independent security review. Never mirror private source without explicit authorization. After an approved GitHub ownership transfer verify unchanged ID/tree/history, restore security policy, change consumers separately and run exact-head tests with **nonzero executed steps**. `steps=[]`/`null` is `NOT_EXECUTED`; host or structural tests cannot certify AttoLang guest execution, database safety or actor parity.
+AttoLang is the canonical project name; new source, examples and documentation use `.atto` and the `atto-lang` repository organization. This README defines scope, not feature readiness.
+
+**Acceptance:** name exact source SHA/tree, runtime/toolchain, positive and negative checks and execution receipt before claiming support. Host-only tests and empty CI steps do not prove guest execution.
+
+## Legacy provenance and migration guardrails
+
+The historical predecessor `ores-truffle-oreslang/rx-ores` is archived; the current `atto-lang/atto-rx` has a separate numeric GitHub identity. Preserve supported legacy `.ores` inputs and historical package/CLI aliases until compiler-backed replacements are verified; new language source follows the canonical `.atto` [grammar](https://github.com/atto-lang/atto-spec/blob/main/spec/01-source-and-syntax.md) and [ownership contract](https://github.com/atto-lang/atto-spec/blob/main/spec/04-ownership-and-memory.md).
+
+Portable reactive semantics and bounded operator contracts belong here; compiler scheduler internals and managed event-streaming SaaS do not. [atto-lang](https://github.com/atto-lang) owns language, portable libraries and tooling; [atto-co](https://github.com/atto-co) separately governs managed hosting, deployment, tenant identity and billing. Further original-ID transfers or product carve-outs require separate owner authorization and independent security review.
+
+Before an authorized transfer, record exact SHA/tree, numeric ID, source/target administrators, access, branch protections, releases, PRs, packages, dependencies, runners, secrets, apps, webhooks, Pages and rollback ownership. Verify identity, history and controls afterward, and retest consumer references. Never mirror private source without authorization. Empty or null steps are NOT_EXECUTED; host or structural checks cannot establish compiled guest execution or parity.
